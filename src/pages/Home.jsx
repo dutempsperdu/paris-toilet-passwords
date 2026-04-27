@@ -25,8 +25,33 @@ const MBTI_TYPES = [
   'OTHER'
 ]
 
+// 巴黎各区（20个）的中心坐标（近似）
+const ARRONDISSEMENTS = [
+  { code: '75001', label: '75001 - Louvre', lat: 48.862, lng: 2.336 },
+  { code: '75002', label: '75002 - Bourse', lat: 48.868, lng: 2.340 },
+  { code: '75003', label: '75003 - Temple', lat: 48.864, lng: 2.362 },
+  { code: '75004', label: '75004 - Hôtel-de-Ville', lat: 48.856, lng: 2.350 },
+  { code: '75005', label: '75005 - Panthéon', lat: 48.845, lng: 2.344 },
+  { code: '75006', label: '75006 - Luxembourg', lat: 48.847, lng: 2.330 },
+  { code: '75007', label: '75007 - Bourbon', lat: 48.855, lng: 2.316 },
+  { code: '75008', label: '75008 - Élysée', lat: 48.874, lng: 2.312 },
+  { code: '75009', label: '75009 - Opéra', lat: 48.876, lng: 2.335 },
+  { code: '75010', label: '75010 - Entrepôt', lat: 48.875, lng: 2.358 },
+  { code: '75011', label: '75011 - Popincourt', lat: 48.858, lng: 2.376 },
+  { code: '75012', label: '75012 - Reuilly', lat: 48.840, lng: 2.387 },
+  { code: '75013', label: '75013 - Gobelins', lat: 48.832, lng: 2.353 },
+  { code: '75014', label: '75014 - Observatoire', lat: 48.833, lng: 2.326 },
+  { code: '75015', label: '75015 - Vaugirard', lat: 48.841, lng: 2.316 },
+  { code: '75016', label: '75016 - Passy', lat: 48.865, lng: 2.277 },
+  { code: '75017', label: '75017 - Batignolles', lat: 48.886, lng: 2.317 },
+  { code: '75018', label: '75018 - Butte-Montmartre', lat: 48.891, lng: 2.342 },
+  { code: '75019', label: '75019 - Buttes-Chaumont', lat: 48.883, lng: 2.381 },
+  { code: '75020', label: '75020 - Ménilmontant', lat: 48.868, lng: 2.397 }
+];
+
 function Home() {
   const { t, i18n } = useTranslation()
+  const [selectedArr, setSelectedArr] = useState('')
   const [activePage, setActivePage] = useState('home')
   const [selectedMbti, setSelectedMbti] = useState({})
   const [openDropdown, setOpenDropdown] = useState(null)
@@ -45,9 +70,7 @@ function Home() {
     mbtiCounts: {}
   })
   
-  // ========== 新增：手动位置选择相关状态 ==========
-  const [manualLocation, setManualLocation] = useState('')
-  const [isLocating, setIsLocating] = useState(false)
+
   
   // Get user location
   useEffect(() => {
@@ -81,58 +104,7 @@ function Home() {
     return Math.round(R * c * 1000)
   }
   
-  // ========== 新增：地址转坐标函数（使用 OpenStreetMap Nominatim API）==========
-  const geocodeAddress = async (address) => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&addressdetails=1&countrycodes=fr`,
-        {
-          headers: {
-            'User-Agent': 'ToiletParis/1.0'
-          }
-        }
-      )
-      const data = await response.json()
-      
-      if (data && data.length > 0) {
-        return {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon),
-          name: data[0].display_name
-        }
-      }
-      return null
-    } catch (error) {
-      console.error('Geocoding error:', error)
-      return null
-    }
-  }
-  
-  // ========== 新增：处理手动位置搜索 ==========
-  const handleManualLocation = async () => {
-    if (!manualLocation.trim()) {
-      alert(t('enter_location_prompt') || '请输入地址或邮编')
-      return
-    }
-    
-    setIsLocating(true)
-    try {
-      const location = await geocodeAddress(manualLocation)
-      
-      if (location) {
-        setUserLocation({ lat: location.lat, lng: location.lng })
-        alert(`${t('location_found') || '找到位置'}: ${location.name.substring(0, 50)}`)
-        setManualLocation('')
-      } else {
-        alert(t('location_not_found') || '未找到该地址，请尝试输入更具体的位置（如：巴黎 75001）')
-      }
-    } catch (error) {
-      console.error('Location search error:', error)
-      alert(t('location_error') || '搜索位置失败，请重试')
-    } finally {
-      setIsLocating(false)
-    }
-  }
+
   
 // Fetch dashboard stats from Supabase（只从 codes 表统计）
 const fetchDashboardStats = async () => {
@@ -223,10 +195,21 @@ const fetchDashboardStats = async () => {
     }
   }, [userLocation])
   
-  const changeLanguage = (lng) => {
-    setLanguage(lng)
-    i18n.changeLanguage(lng)
+  const handleArrondissementChange = (e) => {
+    const code = e.target.value
+    setSelectedArr(code)
+    if (code === '') return
+    const arr = ARRONDISSEMENTS.find(a => a.code === code)
+    if (arr) {
+      setUserLocation({ lat: arr.lat, lng: arr.lng })
+      alert(`📍 已定位到 ${arr.label}`)
+    }
   }
+
+  const changeLanguage = (lng) => {
+    setLanguage(lng);
+    i18n.changeLanguage(lng);
+  };
   
   const formatLastUpdated = (dateString) => {
     if (!dateString) return t('unknown')
@@ -462,44 +445,23 @@ const fetchDashboardStats = async () => {
             
             {/* ========== 新增：手动位置选择器 ========== */}
             <div className="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
-              <p className="text-xs font-medium text-blue-700 mb-2 flex items-center gap-1">
-                <span>📍</span> {t('manual_location_title') || '或输入你的位置'}
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={manualLocation}
-                  onChange={(e) => {
-                    // 安全过滤：只允许字母、数字、空格、逗号、连字符、中文
-                    const filtered = e.target.value.replace(/[^a-zA-Z0-9\s\u4e00-\u9fa5,.'\-]/g, '')
-                    setManualLocation(filtered)
-                  }}
-                  placeholder={t('manual_location_placeholder') || '例如：巴黎 75001 或 Châtelet'}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white"
-                  maxLength={100}
-                />
-                <button
-                  onClick={handleManualLocation}
-                  disabled={isLocating || !manualLocation.trim()}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-600 transition"
-                >
-                  {isLocating ? (
-                    <span className="flex items-center gap-1">
-                      <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      {t('locating') || '定位中'}
-                    </span>
-                  ) : (
-                    t('confirm') || '确认'
-                  )}
-                </button>
-              </div>
-              <p className="text-[10px] text-blue-400 mt-1.5">
-                {t('manual_location_hint') || '支持输入地址、地标或邮编（仅限巴黎地区）'}
-              </p>
-            </div>
+  <p className="text-xs font-medium text-blue-700 mb-2 flex items-center gap-1">
+    <span>🗺️</span> {t('select_arrondissement') || '选择巴黎的区'}
+  </p>
+  <select
+    value={selectedArr}
+    onChange={handleArrondissementChange}
+    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white"
+  >
+    <option value="">{t('select_placeholder') || '-- 请选择 --'}</option>
+    {ARRONDISSEMENTS.map(arr => (
+      <option key={arr.code} value={arr.code}>{arr.label}</option>
+    ))}
+  </select>
+  <p className="text-[10px] text-blue-400 mt-1.5">
+    {t('select_hint') || '选择后将重新计算附近的厕所位置'}
+  </p>
+</div>
             
             {/* Cards - 只显示最近的3个地点，没有状态标签 */}
             <div className="space-y-3 mb-5">
