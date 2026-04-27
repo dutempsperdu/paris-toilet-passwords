@@ -201,7 +201,7 @@ const fetchDashboardStats = async () => {
         
         const mergedVenues = venuesWithDistance.map(venue => ({
           ...venue,
-          code: latestCodes[venue.id]?.code || 'No code yet',
+          code: latestCodes[venue.id]?.code || 'none',
           lastUpdated: latestCodes[venue.id]?.created_at || venue.created_at,
           status: latestCodes[venue.id]?.status || 'unknown'
         }))
