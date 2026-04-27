@@ -134,28 +134,30 @@ function Home() {
     }
   }
   
-  // Fetch dashboard stats from Supabase
-  const fetchDashboardStats = async () => {
-    try {
-      const { data: codesData } = await supabase.from('codes').select('*')
-      const { data: mbtiData } = await supabase.from('mbti_contributions').select('*')
-      
-      const worksCount = codesData?.filter(c => c.status === 'working').length || 0
-      const brokenCount = codesData?.filter(c => c.status === 'broken').length || 0
-      const totalContributions = (codesData?.length || 0) + (mbtiData?.length || 0)
-      
-      const mbtiCounts = {}
-      MBTI_TYPES.forEach(type => { mbtiCounts[type] = 0 })
-      mbtiData?.forEach(item => {
-        const type = item.mbti_type
-        if (mbtiCounts[type] !== undefined) mbtiCounts[type]++
-      })
-      
-      setDashboardStats({ totalContributions, worksCount, brokenCount, mbtiCounts })
-    } catch (err) {
-      console.error('Error fetching dashboard stats:', err)
-    }
+// Fetch dashboard stats from Supabase（只从 codes 表统计）
+const fetchDashboardStats = async () => {
+  try {
+    const { data: codesData } = await supabase.from('codes').select('*')
+    
+    const worksCount = codesData?.filter(c => c.status === 'working').length || 0
+    const brokenCount = codesData?.filter(c => c.status === 'broken').length || 0
+    const totalContributions = codesData?.length || 0
+    
+    // 从 codes 表的 mbti_type 字段统计 MBTI 分布
+    const mbtiCounts = {}
+    MBTI_TYPES.forEach(type => { mbtiCounts[type] = 0 })
+    codesData?.forEach(item => {
+      const type = item.mbti_type
+      if (type && mbtiCounts[type] !== undefined) {
+        mbtiCounts[type]++
+      }
+    })
+    
+    setDashboardStats({ totalContributions, worksCount, brokenCount, mbtiCounts })
+  } catch (err) {
+    console.error('Error fetching dashboard stats:', err)
   }
+}
   
   // Fetch venues from Supabase
   useEffect(() => {
@@ -239,69 +241,82 @@ function Home() {
   }
   
   const handleMbtiSelect = async (venueId, mbtiType) => {
-    // ========== localStorage 限流 ==========
-    const lastMbtiTime = localStorage.getItem('last_mbti_time');
+    // ========== 限流：每小时最多20次 ==========
+    const RATE_LIMIT_MAX = 20;
+    const RATE_LIMIT_HOURS = 1;
+    const key = 'mbti_ratelimit'; // 全局计数
     const now = Date.now();
-    
-    if (lastMbtiTime && (now - parseInt(lastMbtiTime)) < 60 * 60 * 1000) {
-      alert(t('rate_limit_message') || '💚 你一小时内已经分享过 MBTI 啦，请稍后再来 ~');
+    let records = JSON.parse(localStorage.getItem(key) || '[]');
+    // 清除超过1小时的旧记录
+    records = records.filter(ts => (now - ts) < RATE_LIMIT_HOURS * 60 * 60 * 1000);
+    if (records.length >= RATE_LIMIT_MAX) {
+      alert(t('rate_limit_message') || `💚 你每小时只能选择 MBTI ${RATE_LIMIT_MAX} 次，请稍后再来 ~`);
       return;
     }
+    records.push(now);
+    localStorage.setItem(key, JSON.stringify(records));
+    // ========== 限流结束 ==========
     
-    localStorage.setItem('last_mbti_time', now);
-    // ========== 限流代码结束 ==========
+    // 只存储到本地 state，不再插入数据库
+    setSelectedMbti(prev => ({ ...prev, [venueId]: mbtiType }));
+    setOpenDropdown(null);
     
-    setSelectedMbti(prev => ({ ...prev, [venueId]: mbtiType }))
-    setOpenDropdown(null)
-    
-    try {
-      await supabase.from('mbti_contributions').insert([{
-        venue_id: venueId,
-        mbti_type: mbtiType,
-        created_at: new Date().toISOString()
-      }])
-      await fetchDashboardStats()
-    } catch (err) {
-      console.error('Error saving MBTI:', err)
-    }
+    alert(`✓ 已选择 MBTI 类型: ${mbtiType}，现在可以投票或修改密码了`);
   }
   
   const handleVote = async (venueId, voteType) => {
-    // ========== localStorage 限流（每个用户每小时只能投1次）==========
-    const lastVoteTime = localStorage.getItem('last_vote_time');
+    // ========== 限流：每小时最多20次（全局，不分场地） ==========
+    const RATE_LIMIT_MAX = 20;
+    const RATE_LIMIT_HOURS = 1;
+    const key = `vote_ratelimit_${venueId}`;
     const now = Date.now();
+    let records = JSON.parse(localStorage.getItem(key) || '[]');
+    records = records.filter(ts => (now - ts) < RATE_LIMIT_HOURS * 60 * 60 * 1000);
+    if (records.length >= RATE_LIMIT_MAX) {
+      alert(t('rate_limit_message') || `💚 你每小时只能投票 ${RATE_LIMIT_MAX} 次，请稍后再来 ~`);
+      return;
+    }
+    records.push(now);
+    localStorage.setItem(key, JSON.stringify(records));
+    // ========== 限流结束 ==========
     
-    if (lastVoteTime && (now - parseInt(lastVoteTime)) < 60 * 60 * 1000) {
-      alert(t('rate_limit_message') || '💚 你一小时内已经投过票啦，请稍后再来 ~');
+    // 1. 检查是否已选择 MBTI
+    const userMbti = selectedMbti[venueId];
+    if (!userMbti) {
+      alert('请先在上方选择你的 MBTI 类型，再投票 🙏');
       return;
     }
     
-    localStorage.setItem('last_vote_time', now);
-    // ========== 限流代码结束 ==========
-    
+    // 2. 执行投票
     try {
-      const venue = venues.find(v => v.id === venueId)
+      const venue = venues.find(v => v.id === venueId);
       
       await supabase.from('codes').insert([{
         venue_id: venueId,
         code: venue.code,
         status: voteType,
         confirmations: 1,
+        mbti_type: userMbti,        // 记录这次投票所使用的 MBTI
         created_at: new Date().toISOString()
-      }])
+      }]);
       
-      alert(t(voteType === 'working' ? 'vote_works' : 'vote_broken') + ' ' + venue.name)
+      alert(`${t(voteType === 'working' ? 'vote_works' : 'vote_broken')} ${venue.name}`);
       
-      setVenues(prev => prev.map(v => 
-        v.id === venueId 
+      // 3. 清空该场地的 MBTI 选择（可选，鼓励下次重新选）
+      setSelectedMbti(prev => ({ ...prev, [venueId]: null }));
+      
+      // 4. 更新前端显示
+      setVenues(prev => prev.map(v =>
+        v.id === venueId
           ? { ...v, status: voteType, lastUpdated: new Date().toISOString() }
           : v
-      ))
+      ));
       
-      await fetchDashboardStats()
+      // 5. 刷新统计数据
+      await fetchDashboardStats();
     } catch (err) {
-      console.error('Error saving vote:', err)
-      alert(t('vote_error'))
+      console.error('Error saving vote:', err);
+      alert(t('vote_error') || '投票失败，请重试');
     }
   }
   
@@ -315,14 +330,25 @@ function Home() {
   }
   
   const saveCodeChange = async (venueId) => {
+    // 检查是否已选择 MBTI
+    const userMbti = selectedMbti[venueId]
+    if (!userMbti) {
+      alert('请先在上方选择你的 MBTI 类型，再修改密码 🙏')
+      return
+    }
+    
     try {
       await supabase.from('codes').insert([{
         venue_id: venueId,
         code: newCodeValue,
-        status: 'pending',
-        confirmations: 0,
+        status: 'working',           // 注意：改为 'working' 而不是 'pending'
+        confirmations: 1,
+        mbti_type: userMbti,         // ← 新增：记录 MBTI
         created_at: new Date().toISOString()
       }])
+      
+      // 清空该地点的 MBTI 选择
+      setSelectedMbti(prev => ({ ...prev, [venueId]: null }))
       
       setVenues(prev => prev.map(venue => 
         venue.id === venueId 
