@@ -224,9 +224,9 @@ const ko = {
   footer_text: '🥐 파리에서 사랑 보내요 • MBTI 궁금증 •',
   footer_contact: '연락처',
   disclaimer_title: '⚠️ 면책 조항',
-disclaimer_line1: '비밀번호는 커뮤니티 사용자가 제출한 것으로 참고용입니다. 업소에서 언제든지 변경할 수 있습니다.',
-disclaimer_line2: '최신 코드를 얻으려면 구매를 통해 업소를 지원해 주세요.',
-disclaimer_line3: 'MBTI 데이터는 오락 목적으로만 사용되며 전문적인 평가가 아닙니다.'
+  disclaimer_line1: '비밀번호는 커뮤니티 사용자가 제출한 것으로 참고용입니다. 업소에서 언제든지 변경할 수 있습니다.',
+  disclaimer_line2: '최신 코드를 얻으려면 구매를 통해 업소를 지원해 주세요.',
+  disclaimer_line3: 'MBTI 데이터는 오락 목적으로만 사용되며 전문적인 평가가 아닙니다.'
 }
 
 i18n
