@@ -45,6 +45,10 @@ function Home() {
     mbtiCounts: {}
   })
   
+  // ========== 新增：手动位置选择相关状态 ==========
+  const [manualLocation, setManualLocation] = useState('')
+  const [isLocating, setIsLocating] = useState(false)
+  
   // Get user location
   useEffect(() => {
     if (navigator.geolocation) {
@@ -75,6 +79,59 @@ function Home() {
               Math.sin(dLon/2) * Math.sin(dLon/2)
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
     return Math.round(R * c * 1000)
+  }
+  
+  // ========== 新增：地址转坐标函数（使用 OpenStreetMap Nominatim API）==========
+  const geocodeAddress = async (address) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&addressdetails=1&countrycodes=fr`,
+        {
+          headers: {
+            'User-Agent': 'ToiletParis/1.0'
+          }
+        }
+      )
+      const data = await response.json()
+      
+      if (data && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon),
+          name: data[0].display_name
+        }
+      }
+      return null
+    } catch (error) {
+      console.error('Geocoding error:', error)
+      return null
+    }
+  }
+  
+  // ========== 新增：处理手动位置搜索 ==========
+  const handleManualLocation = async () => {
+    if (!manualLocation.trim()) {
+      alert(t('enter_location_prompt') || '请输入地址或邮编')
+      return
+    }
+    
+    setIsLocating(true)
+    try {
+      const location = await geocodeAddress(manualLocation)
+      
+      if (location) {
+        setUserLocation({ lat: location.lat, lng: location.lng })
+        alert(`${t('location_found') || '找到位置'}: ${location.name.substring(0, 50)}`)
+        setManualLocation('')
+      } else {
+        alert(t('location_not_found') || '未找到该地址，请尝试输入更具体的位置（如：巴黎 75001）')
+      }
+    } catch (error) {
+      console.error('Location search error:', error)
+      alert(t('location_error') || '搜索位置失败，请重试')
+    } finally {
+      setIsLocating(false)
+    }
   }
   
   // Fetch dashboard stats from Supabase
@@ -181,7 +238,7 @@ function Home() {
     return t('days_ago', { count: Math.floor(diffHours / 24) })
   }
   
-    const handleMbtiSelect = async (venueId, mbtiType) => {
+  const handleMbtiSelect = async (venueId, mbtiType) => {
     // ========== localStorage 限流 ==========
     const lastMbtiTime = localStorage.getItem('last_mbti_time');
     const now = Date.now();
@@ -210,17 +267,18 @@ function Home() {
   }
   
   const handleVote = async (venueId, voteType) => {
-     // ========== localStorage 限流（每个用户每小时只能投1次）==========
-  const lastVoteTime = localStorage.getItem('last_vote_time');
-  const now = Date.now();
-  
-  if (lastVoteTime && (now - parseInt(lastVoteTime)) < 60 * 60 * 1000) {
-    alert(t('rate_limit_message') || '💚 你一小时内已经投过票啦，请稍后再来 ~');
-    return;
-  }
-  
-  localStorage.setItem('last_vote_time', now);
-  // ========== 限流代码结束 ==========
+    // ========== localStorage 限流（每个用户每小时只能投1次）==========
+    const lastVoteTime = localStorage.getItem('last_vote_time');
+    const now = Date.now();
+    
+    if (lastVoteTime && (now - parseInt(lastVoteTime)) < 60 * 60 * 1000) {
+      alert(t('rate_limit_message') || '💚 你一小时内已经投过票啦，请稍后再来 ~');
+      return;
+    }
+    
+    localStorage.setItem('last_vote_time', now);
+    // ========== 限流代码结束 ==========
+    
     try {
       const venue = venues.find(v => v.id === venueId)
       
@@ -374,6 +432,47 @@ function Home() {
             <div className="mb-3">
               <h2 className="text-xl font-bold text-gray-900">{t('nearby_access')}</h2>
               <p className="text-xs text-gray-500">{t('verified')}</p>
+            </div>
+            
+            {/* ========== 新增：手动位置选择器 ========== */}
+            <div className="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+              <p className="text-xs font-medium text-blue-700 mb-2 flex items-center gap-1">
+                <span>📍</span> {t('manual_location_title') || '或输入你的位置'}
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={manualLocation}
+                  onChange={(e) => {
+                    // 安全过滤：只允许字母、数字、空格、逗号、连字符、中文
+                    const filtered = e.target.value.replace(/[^a-zA-Z0-9\s\u4e00-\u9fa5,.'\-]/g, '')
+                    setManualLocation(filtered)
+                  }}
+                  placeholder={t('manual_location_placeholder') || '例如：巴黎 75001 或 Châtelet'}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white"
+                  maxLength={100}
+                />
+                <button
+                  onClick={handleManualLocation}
+                  disabled={isLocating || !manualLocation.trim()}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-600 transition"
+                >
+                  {isLocating ? (
+                    <span className="flex items-center gap-1">
+                      <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {t('locating') || '定位中'}
+                    </span>
+                  ) : (
+                    t('confirm') || '确认'
+                  )}
+                </button>
+              </div>
+              <p className="text-[10px] text-blue-400 mt-1.5">
+                {t('manual_location_hint') || '支持输入地址、地标或邮编（仅限巴黎地区）'}
+              </p>
             </div>
             
             {/* Cards - 只显示最近的3个地点，没有状态标签 */}
@@ -559,7 +658,7 @@ function Home() {
         </div>
       )}
 
-            {/* Footer Note */}
+      {/* Footer Note */}
       <div className="fixed bottom-16 left-0 right-0 px-4 py-2">
         <p className="text-center text-xs text-gray-400">
           {t('footer_text')}
@@ -571,8 +670,9 @@ function Home() {
           </a>
         </p>
       </div>
+      
       {/* ============================================ */}
-      {/* 免责声明 - 优化版 */}
+      {/* 免责声明 - 优化版（你的原始代码） */}
       {/* ============================================ */}
       <div className="fixed bottom-16 left-0 right-0 z-40 px-4 py-2 bg-amber-50/95 backdrop-blur-md border-t border-amber-200/50 shadow-sm">
         <div className="max-w-md mx-auto">
