@@ -571,19 +571,54 @@ function Home() {
           </a>
         </p>
       </div>
-
+      {/* ============================================ */}
+      {/* 免责声明 - 优化版 */}
+      {/* ============================================ */}
+      <div className="fixed bottom-16 left-0 right-0 z-40 px-4 py-2 bg-amber-50/95 backdrop-blur-md border-t border-amber-200/50 shadow-sm">
+        <div className="max-w-md mx-auto">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <span className="text-xs">⚠️</span>
+            <p className="text-[10px] font-semibold text-amber-700 text-center tracking-wide">
+              {t('disclaimer_title')}
+            </p>
+          </div>
+          <p className="text-[9px] text-amber-600/90 text-center leading-relaxed">
+            {t('disclaimer_line1')}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 mt-1">
+            <p className="text-[9px] text-amber-600/80 text-center">
+              {t('disclaimer_line2')}
+            </p>
+            <span className="text-[8px] text-amber-400">•</span>
+            <p className="text-[9px] text-amber-600/80 text-center">
+              {t('disclaimer_line3')}
+            </p>
+          </div>
+        </div>
+      </div>
+      
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-lg">
         <div className="flex max-w-md mx-auto">
-          <button onClick={() => setActivePage('home')} className={`flex-1 py-3 text-center transition-colors ${
-            activePage === 'home' ? 'text-green-500 border-t-2 border-green-500 -mt-px' : 'text-gray-400'
-          }`}>
-            <div className="text-sm">{t('nearby_access')}</div>
+          <button 
+            onClick={() => setActivePage('home')} 
+            className={`flex-1 py-3.5 text-center transition-all duration-200 ${
+              activePage === 'home' 
+                ? 'text-green-500 border-t-2 border-green-500 -mt-px' 
+                : 'text-gray-400 hover:text-gray-500'
+            }`}
+          >
+            <div className="text-sm font-medium">{t('nearby_access')}</div>
           </button>
-          <button onClick={() => setActivePage('dashboard')} className={`flex-1 py-3 text-center transition-colors ${
-            activePage === 'dashboard' ? 'text-green-500 border-t-2 border-green-500 -mt-px' : 'text-gray-400'
-          }`}>
-            <div className="text-sm">{t('dashboard')}</div>
+          <button 
+            onClick={() => setActivePage('dashboard')} 
+            className={`flex-1 py-3.5 text-center transition-all duration-200 ${
+              activePage === 'dashboard' 
+                ? 'text-green-500 border-t-2 border-green-500 -mt-px' 
+                : 'text-gray-400 hover:text-gray-500'
+            }`}
+          >
+            <div className="text-sm font-medium">{t('dashboard')}</div>
           </button>
         </div>
       </nav>
