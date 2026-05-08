@@ -52,6 +52,7 @@ const ARRONDISSEMENTS = [
 function Home() {
   const { t, i18n } = useTranslation()
   const [selectedArr, setSelectedArr] = useState('')
+  const [selectedBrand, setSelectedBrand] = useState('')
   const [activePage, setActivePage] = useState('home')
   const [selectedMbti, setSelectedMbti] = useState({})
   const [openDropdown, setOpenDropdown] = useState(null)
@@ -132,6 +133,7 @@ const fetchDashboardStats = async () => {
 }
   
   // Fetch venues from Supabase
+  // Fetch venues from Supabase
   useEffect(() => {
     const fetchVenues = async () => {
       try {
@@ -177,9 +179,17 @@ const fetchDashboardStats = async () => {
           lastUpdated: latestCodes[venue.id]?.created_at || venue.created_at,
           status: latestCodes[venue.id]?.status || 'unknown'
         }))
+
+        // 1. 先获取前20个最近的地点（为品牌筛选提供足够的数据）
+        let filteredVenues = mergedVenues.slice(0, 20);
         
-        // 只显示最近的3个地点
-        setVenues(mergedVenues.slice(0, 3))
+        // 2. 应用品牌筛选逻辑
+        if (selectedBrand) {
+          filteredVenues = filteredVenues.filter(venue => venue.brand === selectedBrand);
+        }
+        
+        // 3. 最终只显示前5个符合条件的地点
+        setVenues(filteredVenues.slice(0, 5));
         
         await fetchDashboardStats()
       } catch (err) {
@@ -193,7 +203,9 @@ const fetchDashboardStats = async () => {
     if (userLocation) {
       fetchVenues()
     }
-  }, [userLocation])
+    // 当 userLocation 或 selectedBrand 变化时，重新获取数据
+  }, [userLocation, selectedBrand])
+
   
   const handleArrondissementChange = (e) => {
     const code = e.target.value
@@ -204,6 +216,9 @@ const fetchDashboardStats = async () => {
       setUserLocation({ lat: arr.lat, lng: arr.lng })
       alert(`📍 已定位到 ${arr.label}`)
     }
+  }
+  const handleBrandChange = (e) => {
+    setSelectedBrand(e.target.value)
   }
 
   const changeLanguage = (lng) => {
@@ -462,8 +477,30 @@ const fetchDashboardStats = async () => {
     {t('select_hint') || '选择后将重新计算附近的厕所位置'}
   </p>
 </div>
-            
-            {/* Cards - 只显示最近的3个地点，没有状态标签 */}
+                        {/* ========== 新增：品牌筛选器（添加这段） ========== */}
+                        <div className="mb-4 p-3 bg-green-50 rounded-xl border border-green-100">
+              <p className="text-xs font-medium text-green-700 mb-2 flex items-center gap-1">
+                <span>🏷️</span> {t('filter_by_brand') || '按餐厅筛选'}
+              </p>
+              <select
+                value={selectedBrand}
+                onChange={handleBrandChange}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 bg-white"
+              >
+                <option value="">{t('all_brands') || '所有品牌'}</option>
+                <option value="McDonald's">McDonald's</option>
+                <option value="Burger King">Burger King</option>
+                <option value="KFC">KFC</option>
+                <option value="Starbucks">Starbucks</option>
+                <option value="Pret A Manger">Pret A Manger</option>
+                <option value="Quick">Quick</option>
+              </select>
+              <p className="text-[10px] text-green-400 mt-1.5">
+                {t('select_brand_hint') || '选择后将只显示特定品牌的厕所'}
+              </p>
+            </div>
+
+            {/* Cards - 只显示最近的5个地点，没有状态标签 */}
             <div className="space-y-3 mb-5">
               {venues.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">{t('no_venues')}</div>
