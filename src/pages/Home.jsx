@@ -52,6 +52,7 @@ const ARRONDISSEMENTS = [
 function Home() {
   const { t, i18n } = useTranslation()
   const [selectedArr, setSelectedArr] = useState('')
+  const [showDisclaimer, setShowDisclaimer] = useState(true)
   const [selectedBrand, setSelectedBrand] = useState('')
   const [activePage, setActivePage] = useState('home')
   const [selectedMbti, setSelectedMbti] = useState({})
@@ -697,30 +698,43 @@ const fetchDashboardStats = async () => {
       </div>
       
       {/* ============================================ */}
-      {/* 免责声明 - 优化版（你的原始代码） */}
+      {/* 免责声明 - 可关闭版本 */}
       {/* ============================================ */}
-      <div className="fixed bottom-16 left-0 right-0 z-40 px-4 py-2 bg-amber-50/95 backdrop-blur-md border-t border-amber-200/50 shadow-sm">
-        <div className="max-w-md mx-auto">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <span className="text-xs">⚠️</span>
-            <p className="text-[10px] font-semibold text-amber-700 text-center tracking-wide">
-              {t('disclaimer_title')}
+      {showDisclaimer && (
+        <div className="fixed bottom-16 left-0 right-0 z-40 px-4 py-2 bg-amber-50/95 backdrop-blur-md border-t border-amber-200/50 shadow-sm">
+          <div className="max-w-md mx-auto relative">
+            {/* 关闭按钮 */}
+            <button 
+              onClick={() => setShowDisclaimer(false)}
+              className="absolute top-0 right-0 text-amber-500 hover:text-amber-700 transition"
+              aria-label="关闭"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <span className="text-xs">⚠️</span>
+              <p className="text-[10px] font-semibold text-amber-700 text-center tracking-wide">
+                {t('disclaimer_title')}
+              </p>
+            </div>
+            <p className="text-[9px] text-amber-600/90 text-center leading-relaxed pr-4">
+              {t('disclaimer_line1')}
             </p>
-          </div>
-          <p className="text-[9px] text-amber-600/90 text-center leading-relaxed">
-            {t('disclaimer_line1')}
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 mt-1">
-            <p className="text-[9px] text-amber-600/80 text-center">
-              {t('disclaimer_line2')}
-            </p>
-            <span className="text-[8px] text-amber-400">•</span>
-            <p className="text-[9px] text-amber-600/80 text-center">
-              {t('disclaimer_line3')}
-            </p>
+            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 mt-1 pr-4">
+              <p className="text-[9px] text-amber-600/80 text-center">
+                {t('disclaimer_line2')}
+              </p>
+              <span className="text-[8px] text-amber-400">•</span>
+              <p className="text-[9px] text-amber-600/80 text-center">
+                {t('disclaimer_line3')}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-lg">
